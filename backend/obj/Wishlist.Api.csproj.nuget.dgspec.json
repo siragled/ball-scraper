@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/home/danil/projects/ballscraper/backend/Wishlist.Api/Wishlist.Api.csproj": {}
+    "/Users/andreibegu/Documents/Projects/ball-scraper/backend/Wishlist.Api.csproj": {}
   },
   "projects": {
-    "/home/danil/projects/ballscraper/backend/Wishlist.Api/Wishlist.Api.csproj": {
+    "/Users/andreibegu/Documents/Projects/ball-scraper/backend/Wishlist.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/danil/projects/ballscraper/backend/Wishlist.Api/Wishlist.Api.csproj",
+        "projectUniqueName": "/Users/andreibegu/Documents/Projects/ball-scraper/backend/Wishlist.Api.csproj",
         "projectName": "Wishlist.Api",
-        "projectPath": "/home/danil/projects/ballscraper/backend/Wishlist.Api/Wishlist.Api.csproj",
-        "packagesPath": "/home/danil/.nuget/packages/",
-        "outputPath": "/home/danil/projects/ballscraper/backend/Wishlist.Api/obj/",
+        "projectPath": "/Users/andreibegu/Documents/Projects/ball-scraper/backend/Wishlist.Api.csproj",
+        "packagesPath": "/Users/andreibegu/.nuget/packages/",
+        "outputPath": "/Users/andreibegu/Documents/Projects/ball-scraper/backend/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/danil/.nuget/NuGet/NuGet.Config"
+          "/Users/andreibegu/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
@@ -38,15 +38,33 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[9.0.7, )"
+            },
+            "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.7, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[9.0.5, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.7, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[9.0.4, )"
             }
           },
           "imports": [
@@ -60,12 +78,6 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[9.0.5, 9.0.5]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.AspNetCore.App": {
               "privateAssets": "none"
@@ -74,7 +86,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/9.0.106/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.303/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
