@@ -1,0 +1,28 @@
+{
+  "name": "Wishlist Devpod (.NET 9 + Node 20 + Postgres)",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:9.0-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [5001, 5173, 5432],
+  "portsAttributes": {
+    "5001": { "label": "API", "onAutoForward": "notify" },
+    "5173": { "label": "Vite", "onAutoForward": "openBrowser" },
+    "5432": { "label": "Postgres" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}
