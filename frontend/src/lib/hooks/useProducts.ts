@@ -1,6 +1,6 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { productsAPI } from '../api/products';
-import type { PagedProducts, ProductQueryParams, Product } from '../schemas/product';
+import type { PagedProducts, ProductQueryParams, Product, CreateProduct } from '../schemas/product';
 
 export const useProducts = (
     params: ProductQueryParams
@@ -18,5 +18,16 @@ export const useProduct = (id: string): UseQueryResult<Product, Error> => {
         queryKey: ['products', 'detail', id],
         queryFn: () => productsAPI.getProduct(id),
         enabled: !!id,
+    });
+};
+
+export const useCreateProduct = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: CreateProduct) => productsAPI.createProduct(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products', 'list'] });
+        },
     });
 };
