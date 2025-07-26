@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Wishlist.Data;
 using Wishlist.Models;
 using Wishlist.Models.DTOs;
+using Wishlist.Models.Common;
+using Wishlist.Extensions;
 
 namespace Wishlist.Services;
 
@@ -14,15 +16,28 @@ public class ProductService
         _context = context;
     }
 
-    public async Task<Product> CreateProductAsync(CreateProductDto dto)
+    public async Task<Product> CreateProductFromUrlAsync(string sourceUrl)
     {
+        var existingProduct = await _context.Products
+            .FirstOrDefaultAsync(p => p.SourceUrl == sourceUrl);
+
+        if (existingProduct != null)
+        {
+            return existingProduct;
+        }
+
         var product = new Product
         {
             Id = Guid.NewGuid(),
-            Name = dto.Name,
-            Description = dto.Description,
-            ImageUrl = dto.ImageUrl,
-            Brand = dto.Brand,
+            Name = "Product Name (To be scraped)",
+            Description = "Product details will be updated when scraper is implemented",
+            ImageUrl = null,
+            Brand = null,
+            SourceUrl = sourceUrl,
+            StoreName = null,
+            LastPrice = 0m,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         _context.Products.Add(product);
@@ -36,22 +51,33 @@ public class ProductService
         return await _context.Products.FindAsync(id);
     }
 
-    public async Task<List<Product>> SearchProductsAsync(string? query, int skip = 0, int take = 20)
+    public async Task<PagedResult<Product>> GetProductsAsync(ProductsRequest request)
     {
-        var queryable = _context.Products.AsQueryable();
+        var query = _context.Products.AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(query))
+        query = query.ApplySearch(request.Search,
+            p => p.Name,
+            p => p.Brand ?? "",
+            p => p.Description ?? "");
+
+        if (!string.IsNullOrWhiteSpace(request.Brand))
         {
-            queryable = queryable.Where(p =>
-                EF.Functions.ILike(p.Name, $"%{query}%") ||
-                EF.Functions.ILike(p.Brand ?? "", $"%{query}%")
-            );
+            query = query.Where(p => EF.Functions.ILike(p.Brand ?? "", $"%{request.Brand}%"));
         }
 
-        return await queryable
-            .OrderBy(p => p.Name)
-            .Skip(skip)
-            .Take(take)
-            .ToListAsync();
+        if (request.MinPrice.HasValue)
+        {
+            query = query.Where(p => p.LastPrice >= request.MinPrice.Value);
+        }
+
+        if (request.MaxPrice.HasValue)
+        {
+            query = query.Where(p => p.LastPrice <= request.MaxPrice.Value);
+        }
+
+        var sortBy = string.IsNullOrWhiteSpace(request.SortBy) ? nameof(Product.Name) : request.SortBy;
+        query = query.ApplySort(sortBy, request.SortDirection);
+
+        return await query.ToPagedResultAsync(request);
     }
 }

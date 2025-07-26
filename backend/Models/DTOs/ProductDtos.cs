@@ -1,12 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using Wishlist.Models.Common;
 
 namespace Wishlist.Models.DTOs;
 
 public record CreateProductDto(
-    [Required, MaxLength(500)] string Name,
-    [MaxLength(2000)] string? Description = null,
-    string? ImageUrl = null,
-    [MaxLength(200)] string? Brand = null
+    [Required, Url] string SourceUrl
 );
 
 public record ProductDto(
@@ -15,5 +13,15 @@ public record ProductDto(
     string? Description,
     string? ImageUrl,
     string? Brand,
+    string SourceUrl,
+    string? StoreName,
+    decimal LastPrice,
     DateTime CreatedAt
 );
+
+public record ProductsRequest : PagedRequest
+{
+    public string? Brand { get; set; }
+    public decimal? MinPrice { get; set; }
+    public decimal? MaxPrice { get; set; }
+}

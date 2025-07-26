@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Authorization;
 using Wishlist.Services;
 using Wishlist.Models.DTOs;
 using Wishlist.Models;
+using Wishlist.Models.Common;
 
 namespace BallScraper.Controllers;
 
 [ApiController]
 [Route("products")]
-[Authorize]
 [Produces("application/json")]
 public class ProductsController : ControllerBase
 {
@@ -22,7 +22,7 @@ public class ProductsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductDto dto)
     {
-        var product = await _productService.CreateProductAsync(dto);
+        var product = await _productService.CreateProductFromUrlAsync(dto.SourceUrl);
         var productDto = MapToDto(product);
 
         return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, productDto);
@@ -38,16 +38,17 @@ public class ProductsController : ControllerBase
         return Ok(MapToDto(product));
     }
 
-    [HttpGet("search")]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> SearchProducts(
-        [FromQuery] string? q,
-        [FromQuery] int skip = 0,
-        [FromQuery] int take = 20)
+    [HttpGet]
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetProducts([FromQuery] ProductsRequest request)
     {
-        if (take > 100) take = 100;
-
-        var products = await _productService.SearchProductsAsync(q, skip, take);
-        var productDtos = products.Select(MapToDto);
+        var result = await _productService.GetProductsAsync(request);
+        var productDtos = new PagedResult<ProductDto>
+        {
+            Items = result.Items.Select(MapToDto),
+            TotalCount = result.TotalCount,
+            Skip = result.Skip,
+            Take = result.Take
+        };
 
         return Ok(productDtos);
     }
@@ -58,6 +59,9 @@ public class ProductsController : ControllerBase
         product.Description,
         product.ImageUrl,
         product.Brand,
+        product.SourceUrl,
+        product.StoreName,
+        product.LastPrice,
         product.CreatedAt
     );
 }
