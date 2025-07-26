@@ -40,7 +40,7 @@ public class ProductService
         {
             Id = Guid.NewGuid(),
             Name = scrapedData?.Name,
-            Description = scrapedData?.Description,
+            Description = scrapedData?.Description.Truncate(1000),
             ImageUrl = scrapedData?.ImageUrl,
             Brand = scrapedData?.Brand,
             SourceUrl = sourceUrl,
