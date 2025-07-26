@@ -6,6 +6,8 @@ using System.Text;
 using Wishlist.Services;
 using Wishlist.Data;
 using Wishlist.Models;
+using Wishlist.Services.Scrapers;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +50,15 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
+// TODO: This is very ugly rn, needs to be changed, factory or something
+builder.Services.AddHttpClient<GenericProductScraper>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+    {
+        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
+    });
+builder.Services.AddScoped<IProductScraper, GenericProductScraper>();
+builder.Services.AddScoped<ScraperService>();
 
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<ProductService>();

@@ -4,16 +4,24 @@ using Wishlist.Models;
 using Wishlist.Models.DTOs;
 using Wishlist.Models.Common;
 using Wishlist.Extensions;
+using Wishlist.Services.Scrapers;
 
 namespace Wishlist.Services;
 
 public class ProductService
 {
     private readonly ApplicationDbContext _context;
+    private readonly ScraperService _scraperService;
+    private readonly ILogger<ProductService> _logger;
 
-    public ProductService(ApplicationDbContext context)
+    public ProductService(
+        ApplicationDbContext context,
+        ScraperService scraperService,
+        ILogger<ProductService> logger)
     {
         _context = context;
+        _scraperService = scraperService;
+        _logger = logger;
     }
 
     public async Task<Product> CreateProductFromUrlAsync(string sourceUrl)
@@ -26,16 +34,18 @@ public class ProductService
             return existingProduct;
         }
 
+        var scrapedData = await _scraperService.ScrapeProductAsync(sourceUrl);
+
         var product = new Product
         {
             Id = Guid.NewGuid(),
-            Name = "Product Name (To be scraped)",
-            Description = "Product details will be updated when scraper is implemented",
-            ImageUrl = null,
-            Brand = null,
+            Name = scrapedData?.Name,
+            Description = scrapedData?.Description,
+            ImageUrl = scrapedData?.ImageUrl,
+            Brand = scrapedData?.Brand,
             SourceUrl = sourceUrl,
-            StoreName = null,
-            LastPrice = 0m,
+            StoreName = "", //TODO: fetch based on scraper
+            LastPrice = scrapedData?.Price ?? 0m,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
