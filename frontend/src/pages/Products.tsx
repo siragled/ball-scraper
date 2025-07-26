@@ -35,6 +35,11 @@ export default function Products() {
         return new Date(dateString).toLocaleDateString();
     };
 
+    const truncateDescription = (description: string, maxLength = 100) => {
+        if (description.length <= maxLength) return description;
+        return description.substring(0, maxLength).trim() + '...';
+    };
+
     if (isLoading) {
         return (
             <div className="p-6">
@@ -114,10 +119,17 @@ export default function Products() {
                                             className="block hover:underline"
                                         >
                                             <div>
-                                                <div className="font-medium">{product.name}</div>
+                                                <div className="font-medium">
+                                                    {product.brand && (
+                                                        <span className="text-muted-foreground mr-2">
+                                                            {product.brand}
+                                                        </span>
+                                                    )}
+                                                    {product.name}
+                                                </div>
                                                 {product.description && (
                                                     <div className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                                                        {product.description}
+                                                        {truncateDescription(product.description)}
                                                     </div>
                                                 )}
                                             </div>
