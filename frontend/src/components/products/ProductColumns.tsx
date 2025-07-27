@@ -4,17 +4,7 @@ import { DataTableColumnHeader } from '@/components/ui/data-table/data-table-col
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import type { Product } from '@/lib/schemas/product';
-
-const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('nl-NL', {
-        style: 'currency',
-        currency: 'EUR',
-    }).format(price);
-};
-
-const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-};
+import { formatDate, formatPrice } from '@/lib/utils';
 
 export const productsColumns: ColumnDef<Product>[] = [
     {

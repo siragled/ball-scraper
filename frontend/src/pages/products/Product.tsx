@@ -1,40 +1,17 @@
 import { Link, useParams } from 'react-router-dom';
 import { useProduct } from '@/lib/hooks/useProducts';
+import { formatPrice, formatDate } from '@/lib/utils';
+import { ProductDetailSkeleton } from '@/components/products/ProductDetailSkeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ExternalLink, Calendar, Store } from 'lucide-react';
 
-export default function Product() {
+export default function ProductPage() {
     const { id } = useParams<{ id: string }>();
     const { data: product, isLoading, error } = useProduct(id!);
 
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('nl-NL', {
-            style: 'currency',
-            currency: 'EUR',
-        }).format(price);
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        });
-    };
-
     if (isLoading) {
-        return (
-            <div className="p-6 space-y-6">
-                <Button asChild variant="ghost" size="sm">
-                    <Link to="/products">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Products
-                    </Link>
-                </Button>
-                <div>Loading product...</div>
-            </div>
-        );
+        return <ProductDetailSkeleton />;
     }
 
     if (error || !product) {
