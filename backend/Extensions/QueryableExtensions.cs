@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Wishlist.Models.Common;
 
@@ -67,18 +68,24 @@ public static class QueryableExtensions
         SortDirection sortDirection)
     {
         if (string.IsNullOrWhiteSpace(sortBy))
+        {
             return query;
+        }
 
         var parameter = Expression.Parameter(typeof(T), "x");
-        var property = typeof(T).GetProperty(sortBy);
+
+        var property = typeof(T).GetProperty(sortBy, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
 
         if (property == null)
+        {
             return query;
+        }
 
         var propertyAccess = Expression.MakeMemberAccess(parameter, property);
         var lambda = Expression.Lambda(propertyAccess, parameter);
 
         var methodName = sortDirection == SortDirection.Asc ? "OrderBy" : "OrderByDescending";
+
         var resultExpression = Expression.Call(
             typeof(Queryable),
             methodName,
