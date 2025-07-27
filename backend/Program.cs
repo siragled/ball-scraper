@@ -60,7 +60,6 @@ builder.Services.AddScoped(_ =>
 
 builder.Services.AddProductScraper<GenericProductScraper>();
 builder.Services.AddProductScraper<AmazonProductScraper>();
-builder.Services.AddScoped<IProductScraper, AmazonProductScraper>();
 builder.Services.AddScoped<ScraperService>();
 
 builder.Services.AddScoped<JwtService>();
