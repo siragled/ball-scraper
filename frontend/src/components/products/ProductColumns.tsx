@@ -33,9 +33,15 @@ export const productsColumns: ColumnDef<Product>[] = [
         cell: ({ row }) => (
             <Link to={`/products/${row.original.id}`} className="block hover:underline">
                 <div>
-                    <div className="font-medium">
-                        {row.original.brand && (<span className="text-muted-foreground mr-2">{row.original.brand}</span>)}
-                        {row.original.name}
+                    <div className="font-medium flex items-center">
+                        {row.original.brand && (
+                            <span className="text-muted-foreground mr-2">
+                                {row.original.brand}
+                            </span>
+                        )}
+                        <span className="block max-w-[400px] whitespace-nowrap overflow-hidden text-ellipsis">
+                            {row.original.name}
+                        </span>
                     </div>
                 </div>
             </Link>
