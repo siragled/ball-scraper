@@ -34,7 +34,7 @@ export function LoginPage() {
                 : await login({ username: payload.username, password: payload.password });
             navigate('/');
         } catch (err: any) {
-            setError(err.message || 'Something went wrong');
+            setError("Something went wrong, are your credentials ok?");
         } finally {
             setLoading(false);
         }
