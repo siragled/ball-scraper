@@ -43,7 +43,7 @@ public class AuthController : ControllerBase
         }
 
         var token = _jwtService.GenerateToken(user);
-        var response = new AuthResponseDto(token, user.Email!, user.Id);
+        var response = new AuthResponseDto(token, user.UserName!, user.Email!, user.Id);
 
         return CreatedAtAction(nameof(GetUser), new { id = user.Id }, response);
     }
@@ -66,7 +66,7 @@ public class AuthController : ControllerBase
 
         var token = _jwtService.GenerateToken(user);
 
-        return Ok(new AuthResponseDto(token, user.Email!, user.Id));
+        return Ok(new AuthResponseDto(token, user.UserName!, user.Email!, user.Id));
     }
 
     [HttpGet("users/{id:guid}", Name = nameof(GetUser))]
