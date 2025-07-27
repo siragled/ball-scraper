@@ -4,12 +4,13 @@ namespace Wishlist.Models.DTOs;
 
 public record RegisterDto(
     [EmailAddress] string Email,
+    [MinLength(3)] string Username,
     [MinLength(8)] string Password,
     [MinLength(8)] string ConfirmPassword
 );
 
 public record LoginDto(
-    [EmailAddress] string Email,
+    string Username,
     string Password
 );
 

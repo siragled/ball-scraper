@@ -31,7 +31,7 @@ public class AuthController : ControllerBase
         var user = new AppUser
         {
             Id = Guid.NewGuid(),
-            UserName = dto.Email,
+            UserName = dto.Username,
             Email = dto.Email
         };
 
@@ -51,7 +51,8 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(LoginDto dto)
     {
-        var user = await _userManager.FindByEmailAsync(dto.Email);
+        var user = await _userManager.FindByEmailAsync(dto.Username)
+            ?? await _userManager.FindByNameAsync(dto.Username);
         if (user == null)
         {
             return BadRequest(new { Error = "Invalid credentials" });
