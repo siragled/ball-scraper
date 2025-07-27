@@ -8,6 +8,7 @@ using Wishlist.Data;
 using Wishlist.Models;
 using Wishlist.Services.Scrapers;
 using System.Net;
+using AngleSharp;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,12 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddScoped(_ =>
+{
+    var config = Configuration.Default.WithDefaultLoader();
+    return BrowsingContext.New(config);
+});
+
 // TODO: This is very ugly rn, needs to be changed, factory or something
 builder.Services.AddHttpClient<GenericProductScraper>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
@@ -58,6 +65,13 @@ builder.Services.AddHttpClient<GenericProductScraper>()
         AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
     });
 builder.Services.AddScoped<IProductScraper, GenericProductScraper>();
+
+builder.Services.AddHttpClient<AmazonProductScraper>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+    {
+        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
+    });
+builder.Services.AddScoped<IProductScraper, AmazonProductScraper>();
 builder.Services.AddScoped<ScraperService>();
 
 builder.Services.AddScoped<JwtService>();

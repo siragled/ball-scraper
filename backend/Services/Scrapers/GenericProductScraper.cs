@@ -15,12 +15,11 @@ public class GenericProductScraper : IProductScraper
 
     public int Priority => 1;
 
-    public GenericProductScraper(HttpClient httpClient, ILogger<GenericProductScraper> logger)
+    public GenericProductScraper(HttpClient httpClient, ILogger<GenericProductScraper> logger, IBrowsingContext browsingContext)
     {
         _httpClient = httpClient;
         _logger = logger;
-        var config = Configuration.Default.WithDefaultLoader();
-        _browsingContext = BrowsingContext.New(config);
+        _browsingContext = browsingContext;
     }
 
     public bool CanScrape(string url) =>
