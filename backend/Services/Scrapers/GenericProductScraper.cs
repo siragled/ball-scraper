@@ -1,4 +1,5 @@
 using AngleSharp;
+using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using System.Net;
 using System.Text.Json;
@@ -19,7 +20,7 @@ public class GenericProductScraper : IProductScraper
         _httpClient = httpClient;
         _logger = logger;
 
-        var config = Configuration.Default;
+        var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
     }
 
@@ -52,27 +53,46 @@ public class GenericProductScraper : IProductScraper
             var html = await response.Content.ReadAsStringAsync();
             var document = await _browsingContext.OpenAsync(req => req.Content(html)) as IHtmlDocument;
 
-            if (document == null) return null;
+            if (document == null)
+            {
+                _logger.LogWarning("AngleSharp could not parse the document from {Url}", url);
+                return null;
+            }
 
             var productData = new ScrapedProductData();
 
             ExtractSchemaOrgData(document, productData);
+
             if (string.IsNullOrEmpty(productData.Name))
+            {
+                _logger.LogInformation("No Schema.org product found. Falling back to OpenGraph for {Url}", url);
                 ExtractOpenGraphData(document, productData);
+            }
 
             if (!string.IsNullOrEmpty(productData.Name))
-                _logger.LogInformation("Found product: {Name}", productData.Name);
+            {
+                _logger.LogInformation("Successfully scraped product '{Name}' with price {Price} {Currency} from {Url}", productData.Name, productData.Price, productData.Currency, url);
+            }
+            else
+            {
+                _logger.LogWarning("Could not scrape any product data from {Url}", url);
+            }
 
             return string.IsNullOrEmpty(productData.Name) ? null : productData;
         }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request for scraping {Url} failed with status {StatusCode}", url, ex.StatusCode);
+            return null;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Scraping failed: {Message}", ex.Message);
+            _logger.LogError(ex, "An unexpected error occurred while scraping {Url}", url);
             return null;
         }
     }
 
-    private void ExtractSchemaOrgData(IHtmlDocument document, ScrapedProductData productData)
+    private void ExtractSchemaOrgData(IHtmlDocument document, ScrapedProductData finalProductData)
     {
         var scripts = document.QuerySelectorAll("script[type='application/ld+json']");
 
@@ -84,55 +104,140 @@ public class GenericProductScraper : IProductScraper
                 if (string.IsNullOrWhiteSpace(json)) continue;
 
                 using var doc = JsonDocument.Parse(json);
-                if (TryExtractFromJsonLd(doc.RootElement, productData))
+                if (FindProductInJsonGraph(doc.RootElement, finalProductData))
                     break;
             }
-            catch { }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse JSON-LD script. Content might be invalid.");
+            }
         }
     }
 
-    private bool TryExtractFromJsonLd(JsonElement element, ScrapedProductData productData)
+    private bool FindProductInJsonGraph(JsonElement element, ScrapedProductData finalProductData)
     {
-        if (element.ValueKind == JsonValueKind.Array)
-            return element.EnumerateArray().Any(item => TryExtractFromJsonLd(item, productData));
-
-        if (element.ValueKind != JsonValueKind.Object ||
-            !element.TryGetProperty("@type", out var type) ||
-            type.GetString() != "Product")
-            return false;
-
-        if (element.TryGetProperty("name", out var name))
-            productData.Name = name.GetString() ?? "";
-
-        if (element.TryGetProperty("description", out var desc))
-            productData.Description = desc.GetString();
-
-        if (element.TryGetProperty("brand", out var brand))
+        if (element.ValueKind == JsonValueKind.Object)
         {
-            productData.Brand = brand.ValueKind == JsonValueKind.Object &&
-                               brand.TryGetProperty("name", out var brandName)
-                ? brandName.GetString()
-                : brand.GetString();
+            if (element.TryGetProperty("@type", out var typeProperty))
+            {
+                var type = typeProperty.ValueKind == JsonValueKind.Array
+                    ? typeProperty.EnumerateArray().FirstOrDefault(t => t.GetString() is "Product" or "ProductGroup").GetString()
+                    : typeProperty.GetString();
+
+                switch (type)
+                {
+                    case "Product":
+                        var product = ParseProductElement(element);
+                        if (product != null)
+                        {
+                            UpdateFinalProductData(finalProductData, product);
+                            return true;
+                        }
+                        break;
+
+                    case "ProductGroup":
+                        var cheapestVariant = FindCheapestVariant(element);
+                        if (cheapestVariant != null)
+                        {
+                            UpdateFinalProductData(finalProductData, cheapestVariant);
+                            return true;
+                        }
+                        break;
+                }
+            }
+
+            foreach (var property in element.EnumerateObject())
+            {
+                if (FindProductInJsonGraph(property.Value, finalProductData))
+                {
+                    return true;
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                if (FindProductInJsonGraph(item, finalProductData))
+                {
+                    return true;
+                }
+            }
         }
 
-        if (element.TryGetProperty("image", out var image))
+        return false;
+    }
+
+    private ScrapedProductData? FindCheapestVariant(JsonElement productGroupElement)
+    {
+        if (!productGroupElement.TryGetProperty("hasVariant", out var variantsElement) || variantsElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        ScrapedProductData? cheapestVariant = null;
+
+        foreach (var variantElement in variantsElement.EnumerateArray())
+        {
+            var currentVariant = ParseProductElement(variantElement);
+            if (currentVariant?.Price == null) continue;
+
+            if (cheapestVariant == null || currentVariant.Price < cheapestVariant.Price)
+            {
+                cheapestVariant = currentVariant;
+            }
+        }
+
+        if (cheapestVariant != null)
+        {
+            _logger.LogInformation("Selected cheapest variant '{Name}' with price {Price}", cheapestVariant.Name, cheapestVariant.Price);
+        }
+
+        return cheapestVariant;
+    }
+
+    private ScrapedProductData? ParseProductElement(JsonElement productElement)
+    {
+        if (productElement.ValueKind != JsonValueKind.Object || !productElement.TryGetProperty("@type", out _))
+        {
+            return null;
+        }
+
+        var productData = new ScrapedProductData();
+
+        if (productElement.TryGetProperty("name", out var name))
+            productData.Name = WebUtility.HtmlDecode(name.GetString() ?? "");
+
+        if (string.IsNullOrEmpty(productData.Name)) return null;
+
+        if (productElement.TryGetProperty("description", out var desc))
+            productData.Description = WebUtility.HtmlDecode(desc.GetString());
+
+        if (productElement.TryGetProperty("brand", out var brand))
+        {
+            productData.Brand = brand.ValueKind == JsonValueKind.Object && brand.TryGetProperty("name", out var brandName)
+                ? WebUtility.HtmlDecode(brandName.GetString())
+                : WebUtility.HtmlDecode(brand.GetString());
+        }
+
+        if (productElement.TryGetProperty("image", out var image))
         {
             productData.ImageUrl = image.ValueKind switch
             {
-                JsonValueKind.Array => image.EnumerateArray().FirstOrDefault().GetString(),
+                JsonValueKind.Array => image.EnumerateArray().Select(e => e.GetString()).FirstOrDefault(s => !string.IsNullOrEmpty(s)),
                 JsonValueKind.String => image.GetString(),
                 JsonValueKind.Object when image.TryGetProperty("url", out var url) => url.GetString(),
                 _ => null
             };
         }
 
-        if (element.TryGetProperty("sku", out var sku))
+        if (productElement.TryGetProperty("sku", out var sku))
             productData.Sku = sku.GetString();
 
-        if (element.TryGetProperty("offers", out var offers))
+        if (productElement.TryGetProperty("offers", out var offers))
             ExtractPriceFromOffers(offers, productData);
 
-        return !string.IsNullOrEmpty(productData.Name);
+        return productData;
     }
 
     private void ExtractPriceFromOffers(JsonElement offers, ScrapedProductData productData)
@@ -141,50 +246,74 @@ public class GenericProductScraper : IProductScraper
             ? offers.EnumerateArray().FirstOrDefault()
             : offers;
 
-        if (offer.TryGetProperty("price", out var price) &&
-            decimal.TryParse(price.GetString(), out var priceValue))
+        if (offer.ValueKind != JsonValueKind.Object) return;
+
+        if (offer.TryGetProperty("price", out var priceElement) && TryGetDecimal(priceElement, out var priceValue))
+        {
             productData.Price = priceValue;
+        }
+        else if (offer.TryGetProperty("lowPrice", out var lowPriceElement) && TryGetDecimal(lowPriceElement, out var lowPriceValue))
+        {
+            productData.Price = lowPriceValue;
+        }
 
         if (offer.TryGetProperty("priceCurrency", out var currency))
+        {
             productData.Currency = currency.GetString();
+        }
+    }
 
-        if (offer.TryGetProperty("lowPrice", out var lowPrice) &&
-            decimal.TryParse(lowPrice.GetString(), out var lowPriceValue))
-            productData.Price = lowPriceValue;
+    private bool TryGetDecimal(JsonElement element, out decimal value)
+    {
+        if (element.ValueKind == JsonValueKind.Number)
+        {
+            return element.TryGetDecimal(out value);
+        }
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            return decimal.TryParse(element.GetString(), out value);
+        }
+        value = 0;
+        return false;
+    }
+
+    private void UpdateFinalProductData(ScrapedProductData finalData, ScrapedProductData sourceData)
+    {
+        finalData.Name = sourceData.Name;
+        finalData.Description = sourceData.Description;
+        finalData.ImageUrl = sourceData.ImageUrl;
+        finalData.Price = sourceData.Price;
+        finalData.Currency = sourceData.Currency;
+        finalData.Brand = sourceData.Brand;
+        finalData.Sku = sourceData.Sku;
     }
 
     private void ExtractOpenGraphData(IHtmlDocument document, ScrapedProductData productData)
     {
-        var metas = document.QuerySelectorAll("meta[property], meta[name]");
+        productData.Name ??= GetMetaContent(document, "og:title", "twitter:title")!;
+        productData.Description ??= GetMetaContent(document, "og:description", "twitter:description", "description");
+        productData.ImageUrl ??= GetMetaContent(document, "og:image", "twitter:image");
+        productData.Brand ??= GetMetaContent(document, "product:brand");
 
-        foreach (var meta in metas)
+        var priceContent = GetMetaContent(document, "product:price:amount");
+        if (productData.Price == null && !string.IsNullOrEmpty(priceContent) && decimal.TryParse(priceContent, out var price))
         {
-            var property = (meta.GetAttribute("property") ?? meta.GetAttribute("name") ?? "").ToLower();
-            var content = meta.GetAttribute("content") ?? "";
+            productData.Price = price;
+        }
+        productData.Currency ??= GetMetaContent(document, "product:price:currency");
+    }
 
-            if (string.IsNullOrEmpty(content)) continue;
-
-            switch (property)
+    private string? GetMetaContent(IHtmlDocument document, params string[] propertyNames)
+    {
+        foreach (var name in propertyNames)
+        {
+            var element = document.QuerySelector($"meta[property='{name}'], meta[name='{name}']");
+            var content = element?.GetAttribute("content");
+            if (!string.IsNullOrEmpty(content))
             {
-                case "og:title" or "twitter:title" when string.IsNullOrEmpty(productData.Name):
-                    productData.Name = content;
-                    break;
-                case "og:description" or "twitter:description" or "description" when string.IsNullOrEmpty(productData.Description):
-                    productData.Description = content;
-                    break;
-                case "og:image" or "twitter:image" when string.IsNullOrEmpty(productData.ImageUrl):
-                    productData.ImageUrl = content;
-                    break;
-                case "product:brand" when string.IsNullOrEmpty(productData.Brand):
-                    productData.Brand = content;
-                    break;
-                case "product:price:amount" when !productData.Price.HasValue && decimal.TryParse(content, out var price):
-                    productData.Price = price;
-                    break;
-                case "product:price:currency" when string.IsNullOrEmpty(productData.Currency):
-                    productData.Currency = content;
-                    break;
+                return WebUtility.HtmlDecode(content);
             }
         }
+        return null;
     }
 }
