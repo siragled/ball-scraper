@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { useProducts } from '@/lib/hooks/useProducts';
 import { useDebounce } from '@/lib/hooks/useDebounce';
-import { ProductsTable } from '@/components/products/ProductsTable';
+import { useServerSideTable } from '@/lib/hooks/useServerSideTable';
 import { AddProductModal } from '@/components/products/AddProductModal';
+import { DataTable } from '@/components/ui/data-table/data-table';
+import { DataTablePagination } from '@/components/ui/data-table/data-table-pagination';
+import { DataTableSkeleton } from '@/components/ui/data-table/data-table-skeleton';
+import { productsColumns } from '@/components/products/ProductColumns';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 
@@ -10,20 +14,14 @@ export default function Products() {
     const [search, setSearch] = useState('');
     const debouncedSearch = useDebounce(search, 300);
 
-    const { data, isLoading } = useProducts({
-        skip: 0,
-        take: 100,
-        search: debouncedSearch || undefined,
+    const { table, query } = useServerSideTable({
+        columns: productsColumns,
+        queryHook: useProducts,
+        search: debouncedSearch,
     });
 
-    if (isLoading) {
-        return (
-            <div className="p-6">
-                <h1 className="text-3xl font-bold mb-2">Products</h1>
-                <div>Loading...</div>
-            </div>
-        );
-    }
+    const { data, isLoading } = query;
+    const columnCount = table.getAllColumns().length;
 
     return (
         <div className="p-6 space-y-6">
@@ -31,7 +29,7 @@ export default function Products() {
                 <div>
                     <h1 className="text-3xl font-bold">Products</h1>
                     <p className="text-muted-foreground">
-                        {data?.totalCount || 0} products
+                        {data?.totalCount ? `${data.totalCount} products` : '...'}
                     </p>
                 </div>
                 <AddProductModal />
@@ -47,7 +45,17 @@ export default function Products() {
                 />
             </div>
 
-            <ProductsTable products={data?.items || []} />
+            {isLoading && !data ? (
+                <DataTableSkeleton columnCount={columnCount} />
+            ) : (
+                <div className="space-y-4">
+                    <DataTable table={table} />
+                    <DataTablePagination
+                        table={table}
+                        isPlaceholderData={query.isPlaceholderData}
+                    />
+                </div>
+            )}
         </div>
     );
 }

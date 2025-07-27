@@ -1,0 +1,87 @@
+import { Link } from 'react-router-dom';
+import type { ColumnDef } from '@tanstack/react-table';
+import { DataTableColumnHeader } from '@/components/ui/data-table/data-table-column-header';
+import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
+import type { Product } from '@/lib/schemas/product';
+
+const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('nl-NL', {
+        style: 'currency',
+        currency: 'EUR',
+    }).format(price);
+};
+
+const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+};
+
+export const productsColumns: ColumnDef<Product>[] = [
+    {
+        accessorKey: 'imageUrl',
+        header: '',
+        cell: ({ row }) => (
+            <Link to={`/products/${row.original.id}`}>
+                <div className="w-12 h-12 bg-muted rounded overflow-hidden">
+                    {row.original.imageUrl && (
+                        <img
+                            src={row.original.imageUrl}
+                            alt={row.original.name}
+                            className="w-full h-full object-contain"
+                        />
+                    )}
+                </div>
+            </Link>
+        ),
+        enableSorting: false,
+    },
+    {
+        accessorKey: 'name',
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Product" />
+        ),
+        cell: ({ row }) => (
+            <Link to={`/products/${row.original.id}`} className="block hover:underline">
+                <div>
+                    <div className="font-medium">
+                        {row.original.brand && (<span className="text-muted-foreground mr-2">{row.original.brand}</span>)}
+                        {row.original.name}
+                    </div>
+                </div>
+            </Link>
+        ),
+    },
+    {
+        accessorKey: 'lastPrice',
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Price" />
+        ),
+        cell: ({ row }) => (
+            <div className="font-medium">
+                {formatPrice(row.original.lastPrice)}
+            </div>
+        ),
+    },
+    {
+        accessorKey: 'createdAt',
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Last Updated" />
+        ),
+        cell: ({ row }) => (
+            <div className="text-sm">
+                {formatDate(row.original.createdAt)}
+            </div>
+        ),
+    },
+    {
+        id: 'actions',
+        cell: ({ row }) => (
+            <Button asChild size="sm" variant="outline">
+                <a href={row.original.sourceUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3" />
+                </a>
+            </Button>
+        ),
+        enableSorting: false,
+    },
+];
