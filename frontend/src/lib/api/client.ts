@@ -1,13 +1,35 @@
 import axios from 'axios';
 import type { ApiError } from '../schemas/common';
+import type { AuthResponse } from '../schemas/auth';
 
-const apiClient = axios.create({
+export const authHelpers = {
+    setUser: (user: AuthResponse) => {
+        localStorage.setItem('auth_user', JSON.stringify(user));
+    },
+    getUser: (): AuthResponse | null => {
+        const userStr = localStorage.getItem('auth_user');
+        if (!userStr) return null;
+        try {
+            return JSON.parse(userStr) as AuthResponse;
+        } catch (error) {
+            return null;
+        }
+    },
+    getToken: (): string | null => {
+        return authHelpers.getUser()?.token ?? null;
+    },
+    clearUser: () => {
+        localStorage.removeItem('auth_user');
+    },
+};
+
+export const apiClient = axios.create({
     baseURL: '/api',
     timeout: 10000,
 });
 
 apiClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem('auth_token');
+    const token = authHelpers.getToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -17,13 +39,6 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        const isAuthCheck = error.config?.url?.includes('/users/me');
-
-        if (error.response?.status === 401 || error.response?.status === 403 && !isAuthCheck) {
-            authHelpers.clearToken();
-            window.location.href = "/login"
-        }
-
         const apiError: ApiError = {
             message: error.response?.data?.message || error.message || 'An error occurred',
             code: error.response?.status?.toString() || 'NETWORK_ERROR',
@@ -31,11 +46,3 @@ apiClient.interceptors.response.use(
         return Promise.reject(apiError);
     }
 );
-
-export const authHelpers = {
-    setToken: (token: string) => localStorage.setItem('auth_token', token),
-    clearToken: () => localStorage.removeItem('auth_token'),
-    getToken: () => localStorage.getItem('auth_token'),
-};
-
-export { apiClient };

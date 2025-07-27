@@ -12,8 +12,8 @@ import { LoginPage } from '@/pages/auth/Login';
 
 export default function App() {
   return (
-    <QueryProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <QueryProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -27,8 +27,8 @@ export default function App() {
             />
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
-    </QueryProvider>
+      </QueryProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { authAPI } from '@/lib/api/auth';
+import { authHelpers } from '@/lib/api/client';
 import type { AuthResponse } from '@/lib/schemas/auth';
 
 type AuthContextType = {
@@ -7,36 +8,12 @@ type AuthContextType = {
     login: (vars: Parameters<typeof authAPI.login>[0]) => Promise<AuthResponse>;
     register: (vars: Parameters<typeof authAPI.register>[0]) => Promise<AuthResponse>;
     logout: () => void;
-    isLoading: boolean;
-    refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    const [user, setUser] = useState<AuthResponse | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-
-    const refreshUser = async () => {
-        try {
-            const userData = await authAPI.me();
-            setUser(userData);
-        } catch (error) {
-            console.error('Failed to fetch user:', error);
-            setUser(null);
-        }
-    };
-
-    useEffect(() => {
-        const initializeAuth = async () => {
-            if (authAPI.isAuthenticated()) {
-                await refreshUser();
-            }
-            setIsLoading(false);
-        };
-
-        initializeAuth();
-    }, []);
+    const [user, setUser] = useState<AuthResponse | null>(() => authHelpers.getUser());
 
     const login = async (vars: Parameters<typeof authAPI.login>[0]) => {
         const userData = await authAPI.login(vars);
@@ -56,7 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, logout, isLoading, refreshUser }}>
+        <AuthContext.Provider value={{ user, login, register, logout }}>
             {children}
         </AuthContext.Provider>
     );

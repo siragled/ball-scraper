@@ -1,32 +1,49 @@
-import React from 'react';
+import { useState } from 'react';
 import {
     QueryClient,
     QueryClientProvider,
-    type DefaultOptions,
+    QueryCache,
+    MutationCache
 } from '@tanstack/react-query';
+import { useAuth } from './AuthProvider';
+import type { ApiError } from '../schemas/common';
 
-const queryConfig: DefaultOptions = {
-    queries: {
-        retry: (failureCount, error: any) => {
-            if (error?.code?.startsWith('4')) return false;
-            return failureCount < 3;
-        },
-        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-        staleTime: 5 * 60 * 1000,
-        gcTime: 10 * 60 * 1000,
-        refetchOnWindowFocus: false,
-    },
-};
+export const QueryProvider = ({ children }: { children: React.ReactNode }) => {
+    const { logout } = useAuth();
 
-const queryClient = new QueryClient({
-    defaultOptions: queryConfig,
-});
+    const [queryClient] = useState(() =>
+        new QueryClient({
+            queryCache: new QueryCache({
+                onError: (error) => {
+                    const apiError = error as ApiError;
+                    if (apiError.code === '401' || apiError.code === '403') {
+                        logout();
+                    }
+                },
+            }),
+            mutationCache: new MutationCache({
+                onError: (error) => {
+                    const apiError = error as ApiError;
+                    if (apiError.code === '401' || apiError.code === '403') {
+                        logout();
+                    }
+                },
+            }),
+            defaultOptions: {
+                queries: {
+                    staleTime: 1000 * 60 * 5,
+                    retry: (failureCount, error) => {
+                        const apiError = error as ApiError;
+                        if (apiError.code === '401' || apiError.code === '403') {
+                            return false;
+                        }
+                        return failureCount < 2;
+                    },
+                },
+            },
+        })
+    );
 
-interface QueryProviderProps {
-    children: React.ReactNode;
-}
-
-export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
     return (
         <QueryClientProvider client={queryClient}>
             {children}
