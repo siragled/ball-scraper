@@ -52,11 +52,21 @@ export const productsColumns: ColumnDef<Product>[] = [
         header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Price" />
         ),
-        cell: ({ row }) => (
-            <div className="font-medium">
-                {formatPrice(row.original.lastPrice)}
-            </div>
-        ),
+        cell: ({ row }) => {
+            const product = row.original;
+            return (
+                <div className="font-medium">
+                    <span className={product.isOnSale ? 'text-destructive' : ''}>
+                        {formatPrice(product.lastPrice)}
+                    </span>
+                    {product.isOnSale && product.usualPrice && (
+                        <span className="text-sm text-muted-foreground line-through ml-2">
+                            {formatPrice(product.usualPrice)}
+                        </span>
+                    )}
+                </div>
+            );
+        },
     },
     {
         accessorKey: 'createdAt',

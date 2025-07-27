@@ -4,7 +4,7 @@ import { formatPrice, formatDate } from '@/lib/utils';
 import { ProductDetailSkeleton } from '@/components/products/ProductDetailSkeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ExternalLink, Calendar, Store } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Calendar, Store, ShoppingCart } from 'lucide-react';
 
 export default function ProductPage() {
     const { id } = useParams<{ id: string }>();
@@ -77,8 +77,17 @@ export default function ProductPage() {
                             <Badge variant="secondary" className="mb-2">{product.brand}</Badge>
                         )}
                         <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
-                        <div className="text-2xl font-bold text-primary mb-3">
-                            {formatPrice(product.lastPrice)}
+
+                        {/* Updated price display */}
+                        <div className="flex items-baseline gap-3 mb-3">
+                            <span className={`text-2xl font-bold ${product.isOnSale ? 'text-destructive' : 'text-primary'}`}>
+                                {formatPrice(product.lastPrice)}
+                            </span>
+                            {product.isOnSale && product.usualPrice && (
+                                <span className="text-lg text-muted-foreground line-through">
+                                    {formatPrice(product.usualPrice)}
+                                </span>
+                            )}
                         </div>
                     </div>
 
@@ -92,6 +101,13 @@ export default function ProductPage() {
                     )}
 
                     <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Status:</span>
+                            <span>
+                                {product.isInStock ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                        </div>
                         {product.storeName && (
                             <div className="flex items-center gap-2">
                                 <Store className="h-4 w-4 text-muted-foreground" />

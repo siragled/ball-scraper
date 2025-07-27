@@ -11,7 +11,12 @@ public class Product
     public string? StoreName { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
     public decimal LastPrice { get; set; } = 0;
+    public decimal? UsualPrice { get; set; }
+    public bool IsOnSale { get; set; }
+    public bool IsInStock { get; set; }
 
     public virtual ICollection<WishlistItem> WishlistItems { get; set; } = new List<WishlistItem>();
+    public virtual ICollection<ProductSnapshot> Snapshots { get; set; } = new List<ProductSnapshot>();
 }

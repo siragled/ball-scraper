@@ -63,21 +63,6 @@ public class GenericProductScraper : IProductScraper
 
             ExtractSchemaOrgData(document, productData);
 
-            if (string.IsNullOrEmpty(productData.Name))
-            {
-                _logger.LogInformation("No Schema.org product found. Falling back to OpenGraph for {Url}", url);
-                ExtractOpenGraphData(document, productData);
-            }
-
-            if (!string.IsNullOrEmpty(productData.Name))
-            {
-                _logger.LogInformation("Successfully scraped product '{Name}' with price {Price} {Currency} from {Url}", productData.Name, productData.Price, productData.Currency, url);
-            }
-            else
-            {
-                _logger.LogWarning("Could not scrape any product data from {Url}", url);
-            }
-
             return string.IsNullOrEmpty(productData.Name) ? null : productData;
         }
         catch (HttpRequestException ex)
@@ -146,6 +131,7 @@ public class GenericProductScraper : IProductScraper
                 }
             }
 
+            // Recurse through JSON properties
             foreach (var property in element.EnumerateObject())
             {
                 if (FindProductInJsonGraph(property.Value, finalProductData))
@@ -235,15 +221,15 @@ public class GenericProductScraper : IProductScraper
             productData.Sku = sku.GetString();
 
         if (productElement.TryGetProperty("offers", out var offers))
-            ExtractPriceFromOffers(offers, productData);
+            ExtractOfferData(offers, productData);
 
         return productData;
     }
 
-    private void ExtractPriceFromOffers(JsonElement offers, ScrapedProductData productData)
+    private void ExtractOfferData(JsonElement offers, ScrapedProductData productData)
     {
         var offer = offers.ValueKind == JsonValueKind.Array
-            ? offers.EnumerateArray().FirstOrDefault()
+            ? offers.EnumerateArray().FirstOrDefault(o => o.TryGetProperty("@type", out var type) && type.GetString() == "Offer")
             : offers;
 
         if (offer.ValueKind != JsonValueKind.Object) return;
@@ -261,6 +247,29 @@ public class GenericProductScraper : IProductScraper
         {
             productData.Currency = currency.GetString();
         }
+
+        if (offer.TryGetProperty("priceSpecification", out var priceSpec) && priceSpec.ValueKind == JsonValueKind.Object)
+        {
+            if (priceSpec.TryGetProperty("price", out var salePriceEle) && TryGetDecimal(salePriceEle, out var salePrice))
+            {
+                if (productData.Price > salePrice)
+                {
+                    productData.UsualPrice = productData.Price;
+                    productData.Price = salePrice;
+                }
+            }
+        }
+
+        if (productData.Price.HasValue && productData.UsualPrice.HasValue)
+        {
+            productData.IsOnSale = productData.Price < productData.UsualPrice;
+        }
+
+        if (offer.TryGetProperty("availability", out var availability))
+        {
+            var availabilityUrl = availability.GetString() ?? string.Empty;
+            productData.IsInStock = availabilityUrl.EndsWith("InStock");
+        }
     }
 
     private bool TryGetDecimal(JsonElement element, out decimal value)
@@ -271,7 +280,8 @@ public class GenericProductScraper : IProductScraper
         }
         if (element.ValueKind == JsonValueKind.String)
         {
-            return decimal.TryParse(element.GetString(), out value);
+            return decimal.TryParse(element.GetString(), System.Globalization.NumberStyles.Any,
+             System.Globalization.CultureInfo.InvariantCulture, out value);
         }
         value = 0;
         return false;
@@ -286,34 +296,8 @@ public class GenericProductScraper : IProductScraper
         finalData.Currency = sourceData.Currency;
         finalData.Brand = sourceData.Brand;
         finalData.Sku = sourceData.Sku;
-    }
-
-    private void ExtractOpenGraphData(IHtmlDocument document, ScrapedProductData productData)
-    {
-        productData.Name ??= GetMetaContent(document, "og:title", "twitter:title")!;
-        productData.Description ??= GetMetaContent(document, "og:description", "twitter:description", "description");
-        productData.ImageUrl ??= GetMetaContent(document, "og:image", "twitter:image");
-        productData.Brand ??= GetMetaContent(document, "product:brand");
-
-        var priceContent = GetMetaContent(document, "product:price:amount");
-        if (productData.Price == null && !string.IsNullOrEmpty(priceContent) && decimal.TryParse(priceContent, out var price))
-        {
-            productData.Price = price;
-        }
-        productData.Currency ??= GetMetaContent(document, "product:price:currency");
-    }
-
-    private string? GetMetaContent(IHtmlDocument document, params string[] propertyNames)
-    {
-        foreach (var name in propertyNames)
-        {
-            var element = document.QuerySelector($"meta[property='{name}'], meta[name='{name}']");
-            var content = element?.GetAttribute("content");
-            if (!string.IsNullOrEmpty(content))
-            {
-                return WebUtility.HtmlDecode(content);
-            }
-        }
-        return null;
+        finalData.UsualPrice = sourceData.UsualPrice;
+        finalData.IsOnSale = sourceData.IsOnSale;
+        finalData.IsInStock = sourceData.IsInStock;
     }
 }

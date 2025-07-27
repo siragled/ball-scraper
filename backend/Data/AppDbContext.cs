@@ -12,6 +12,7 @@ public class ApplicationDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
     public DbSet<Product> Products { get; set; }
     public DbSet<Models.Wishlist> Wishlists { get; set; }
     public DbSet<WishlistItem> WishlistItems { get; set; }
+    public DbSet<ProductSnapshot> ProductSnapshots { get; set; } // Add DbSet for snapshots
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -23,7 +24,21 @@ public class ApplicationDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
             entity.Property(e => e.Name).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
             entity.Property(e => e.Brand).HasMaxLength(200);
+            entity.Property(e => e.LastPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.UsualPrice).HasColumnType("decimal(18,2)");
             entity.HasIndex(e => e.Name);
+        });
+
+        builder.Entity<ProductSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.UsualPrice).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Snapshots)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         builder.Entity<Models.Wishlist>(entity =>

@@ -23,7 +23,7 @@ public class ProductsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductDto dto)
     {
-        var product = await _productService.CreateProductFromUrlAsync(dto.SourceUrl);
+        var product = await _productService.GetOrCreateProductFromUrlAsync(dto.SourceUrl);
         var productDto = MapToDto(product);
 
         return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, productDto);
@@ -42,16 +42,39 @@ public class ProductsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<ProductDto>>> GetProducts([FromQuery] ProductsRequest request)
     {
-        var result = await _productService.GetProductsAsync(request);
+        var pagedResult = await _productService.GetProductsAsync(request);
+
         var productDtos = new PagedResult<ProductDto>
         {
-            Items = result.Items.Select(MapToDto),
-            TotalCount = result.TotalCount,
-            Skip = result.Skip,
-            Take = result.Take
+            Items = pagedResult.Items.Select(MapToDto),
+            TotalCount = pagedResult.TotalCount,
+            Skip = pagedResult.Skip,
+            Take = pagedResult.Take
         };
 
         return Ok(productDtos);
+    }
+
+    [HttpGet("{id:guid}/snapshots")]
+    public async Task<ActionResult<PagedResult<ProductSnapshotDto>>> GetProductSnapshots(Guid id, [FromQuery] ProductSnapshotsRequest request)
+    {
+        var product = await _productService.GetProductByIdAsync(id);
+        if (product == null)
+        {
+            return NotFound(new { Message = "Product not found." });
+        }
+
+        var pagedResult = await _productService.GetProductSnapshotsAsync(id, request);
+
+        var snapshotDtos = new PagedResult<ProductSnapshotDto>
+        {
+            Items = pagedResult.Items.Select(MapToSnapshotDto),
+            TotalCount = pagedResult.TotalCount,
+            Skip = pagedResult.Skip,
+            Take = pagedResult.Take
+        };
+
+        return Ok(snapshotDtos);
     }
 
     private static ProductDto MapToDto(Product product) => new(
@@ -63,6 +86,18 @@ public class ProductsController : ControllerBase
         product.SourceUrl,
         product.StoreName,
         product.LastPrice,
+        product.UsualPrice,
+        product.IsOnSale,
+        product.IsInStock,
         product.CreatedAt
+    );
+
+    private static ProductSnapshotDto MapToSnapshotDto(ProductSnapshot snapshot) => new(
+        snapshot.Id,
+        snapshot.CreatedAt,
+        snapshot.Price,
+        snapshot.UsualPrice,
+        snapshot.IsOnSale,
+        snapshot.IsInStock
     );
 }

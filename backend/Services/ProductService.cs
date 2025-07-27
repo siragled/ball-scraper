@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Wishlist.Data;
 using Wishlist.Models;
-using Wishlist.Models.DTOs;
 using Wishlist.Models.Common;
+using Wishlist.Models.DTOs;
 using Wishlist.Extensions;
 using Wishlist.Services.Scrapers;
 
@@ -24,7 +24,7 @@ public class ProductService
         _logger = logger;
     }
 
-    public async Task<Product> CreateProductFromUrlAsync(string sourceUrl)
+    public async Task<Product> GetOrCreateProductFromUrlAsync(string sourceUrl)
     {
         var existingProduct = await _context.Products
             .FirstOrDefaultAsync(p => p.SourceUrl == sourceUrl);
@@ -35,20 +35,24 @@ public class ProductService
         }
 
         var scrapedData = await _scraperService.ScrapeProductAsync(sourceUrl);
+        if (scrapedData == null || string.IsNullOrWhiteSpace(scrapedData.Name))
+        {
+            throw new InvalidOperationException("Could not scrape product data from the provided URL.");
+        }
 
         var product = new Product
         {
             Id = Guid.NewGuid(),
-            Name = scrapedData?.Name,
-            Description = scrapedData?.Description.Truncate(1000),
-            ImageUrl = scrapedData?.ImageUrl,
-            Brand = scrapedData?.Brand,
+            Name = scrapedData.Name,
+            Description = scrapedData.Description.Truncate(1000),
+            ImageUrl = scrapedData.ImageUrl,
+            Brand = scrapedData.Brand,
             SourceUrl = sourceUrl,
-            StoreName = "", //TODO: fetch based on scraper
-            LastPrice = scrapedData?.Price ?? 0m,
+            StoreName = new Uri(sourceUrl).Host,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
         };
+
+        UpdateProductFromScrapedData(product, scrapedData);
 
         _context.Products.Add(product);
         await _context.SaveChangesAsync();
@@ -56,9 +60,68 @@ public class ProductService
         return product;
     }
 
+    public async Task<Product?> UpdateProductAsync(Guid productId)
+    {
+        var product = await _context.Products.FindAsync(productId);
+        if (product == null) return null;
+
+        var scrapedData = await _scraperService.ScrapeProductAsync(product.SourceUrl);
+        if (scrapedData == null || string.IsNullOrWhiteSpace(scrapedData.Name))
+        {
+            _logger.LogWarning("Failed to re-scrape product {ProductId} from {SourceUrl}", productId, product.SourceUrl);
+            return null;
+        }
+
+        UpdateProductFromScrapedData(product, scrapedData);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Successfully updated product {ProductId}", productId);
+        return product;
+    }
+
+    private void UpdateProductFromScrapedData(Product product, ScrapedProductData scrapedData)
+    {
+        var priceChanged = product.LastPrice != (scrapedData.Price ?? 0m);
+        var stockChanged = product.IsInStock != scrapedData.IsInStock;
+
+        product.Name = scrapedData.Name;
+        product.Description = scrapedData.Description.Truncate(1000);
+        product.ImageUrl = scrapedData.ImageUrl;
+        product.LastPrice = scrapedData.Price ?? 0m;
+        product.UsualPrice = scrapedData.UsualPrice;
+        product.IsOnSale = scrapedData.IsOnSale;
+        product.IsInStock = scrapedData.IsInStock;
+        product.UpdatedAt = DateTime.UtcNow;
+
+        if (product.Snapshots.Count == 0 || priceChanged || stockChanged)
+        {
+            var snapshot = new ProductSnapshot
+            {
+                Price = scrapedData.Price ?? 0m,
+                UsualPrice = scrapedData.UsualPrice,
+                IsOnSale = scrapedData.IsOnSale,
+                IsInStock = scrapedData.IsInStock,
+                CreatedAt = DateTime.UtcNow
+            };
+            product.Snapshots.Add(snapshot);
+        }
+    }
+
     public async Task<Product?> GetProductByIdAsync(Guid id)
     {
-        return await _context.Products.FindAsync(id);
+        return await _context.Products
+            .Include(p => p.Snapshots.OrderByDescending(s => s.CreatedAt))
+            .FirstOrDefaultAsync(p => p.Id == id);
+    }
+
+    public async Task<PagedResult<ProductSnapshot>> GetProductSnapshotsAsync(Guid productId, ProductSnapshotsRequest request)
+    {
+        var query = _context.ProductSnapshots
+            .AsNoTracking()
+            .Where(s => s.ProductId == productId)
+            .OrderByDescending(s => s.CreatedAt);
+
+        return await query.ToPagedResultAsync(request);
     }
 
     public async Task<PagedResult<Product>> GetProductsAsync(ProductsRequest request)

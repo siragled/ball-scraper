@@ -7,6 +7,9 @@ public class ScrapedProductData
     public string? Brand { get; set; }
     public string? ImageUrl { get; set; }
     public decimal? Price { get; set; }
+    public decimal? UsualPrice { get; set; }
+    public bool IsOnSale { get; set; }
+    public bool IsInStock { get; set; } = true;
     public string? Currency { get; set; }
     public string? Sku { get; set; }
     public string? Ean { get; set; }

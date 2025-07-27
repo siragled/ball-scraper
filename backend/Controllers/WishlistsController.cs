@@ -122,6 +122,9 @@ public class WishlistsController : ControllerBase
             item.Product.SourceUrl,
             item.Product.StoreName,
             item.Product.LastPrice,
+            item.Product.UsualPrice,
+            item.Product.IsOnSale,
+            item.Product.IsInStock,
             item.Product.CreatedAt
         ),
         item.GlobalTargetPrice,

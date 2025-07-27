@@ -16,7 +16,19 @@ public record ProductDto(
     string SourceUrl,
     string? StoreName,
     decimal LastPrice,
+    decimal? UsualPrice,
+    bool IsOnSale,
+    bool IsInStock,
     DateTime CreatedAt
+);
+
+public record ProductSnapshotDto(
+    Guid Id,
+    DateTime CreatedAt,
+    decimal Price,
+    decimal? UsualPrice,
+    bool IsOnSale,
+    bool IsInStock
 );
 
 public record ProductsRequest : PagedRequest
@@ -25,3 +37,5 @@ public record ProductsRequest : PagedRequest
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
 }
+
+public record ProductSnapshotsRequest : PagedRequest { }
