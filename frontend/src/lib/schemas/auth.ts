@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const RegisterSchema = z.object({
     email: z.email(),
+    username: z.string().min(3),
     password: z.string().min(8),
     confirmPassword: z.string().min(8),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -10,13 +11,14 @@ export const RegisterSchema = z.object({
 });
 
 export const LoginSchema = z.object({
-    email: z.email(),
+    username: z.string(), // can be email or username
     password: z.string().min(1),
 });
 
 export const AuthResponseSchema = z.object({
     token: z.string(),
     email: z.email(),
+    username: z.string(),
     userId: z.uuid(),
 });
 

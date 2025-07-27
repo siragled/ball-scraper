@@ -9,6 +9,7 @@ namespace BallScraper.Controllers;
 
 [ApiController]
 [Route("products")]
+[Authorize]
 [Produces("application/json")]
 public class ProductsController : ControllerBase
 {

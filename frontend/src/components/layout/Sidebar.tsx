@@ -9,8 +9,10 @@ import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/lib/providers/AuthProvider"
 
 export function Sidebar() {
+    const { logout } = useAuth();
     const location = useLocation()
     const pathname = location.pathname
 
@@ -65,7 +67,12 @@ export function Sidebar() {
                             <div className="text-xs text-muted-foreground">user@example.com</div>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={logout}
+                    >
                         <LogOut className="w-4 h-4" />
                     </Button>
                 </div>

@@ -17,6 +17,11 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
+        if (error.response?.status === 401 || error.response?.status === 403) {
+            authHelpers.clearToken();
+            window.location.href = "/login"
+        }
+
         const apiError: ApiError = {
             message: error.response?.data?.message || error.message || 'An error occurred',
             code: error.response?.status?.toString() || 'NETWORK_ERROR',
