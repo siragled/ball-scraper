@@ -8,6 +8,7 @@ type AuthContextType = {
     register: (vars: Parameters<typeof authAPI.register>[0]) => Promise<AuthResponse>;
     logout: () => void;
     isLoading: boolean;
+    refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,10 +17,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<AuthResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const refreshUser = async () => {
+        try {
+            const userData = await authAPI.me();
+            setUser(userData);
+        } catch (error) {
+            console.error('Failed to fetch user:', error);
+            setUser(null);
+        }
+    };
+
     useEffect(() => {
-        const initializeAuth = () => {
+        const initializeAuth = async () => {
             if (authAPI.isAuthenticated()) {
-                setUser({} as AuthResponse);
+                await refreshUser();
             }
             setIsLoading(false);
         };
@@ -45,7 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, login, register, logout, isLoading, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );

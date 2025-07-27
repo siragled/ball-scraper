@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/providers/AuthProvider"
 
 export function Sidebar() {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const location = useLocation()
     const pathname = location.pathname
 
@@ -27,6 +27,10 @@ export function Sidebar() {
         },
         { to: "/settings", label: "Settings", icon: Settings },
     ]
+
+    const getInitial = (name: string | undefined) => {
+        return name ? name.charAt(0).toUpperCase() : "U";
+    };
 
     return (
         <aside className="h-screen w-64 bg-background text-foreground flex flex-col justify-between border-r border-border">
@@ -62,9 +66,21 @@ export function Sidebar() {
             <div className="p-4 border-t border-border">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        {user ? (
+                            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-accent text-accent-foreground font-medium">
+                                {getInitial(user.username)}
+                            </div>
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-muted animate-pulse"></div>
+                        )}
                         <div className="text-sm">
-                            <div className="font-medium leading-none">user</div>
-                            <div className="text-xs text-muted-foreground">user@example.com</div>
+                            {user ? (
+                                <div className="font-medium leading-none">
+                                    {user.username}
+                                </div>
+                            ) : (
+                                <div className="w-20 h-4 bg-muted rounded animate-pulse"></div>
+                            )}
                         </div>
                     </div>
                     <Button

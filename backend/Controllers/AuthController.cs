@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Wishlist.Models;
 using Wishlist.Models.DTOs;
 using Wishlist.Services;
@@ -7,15 +8,15 @@ using Wishlist.Services;
 namespace Wishlist.Controllers;
 
 [ApiController]
-[Route("auth")]
+[Route("users")]
 [Produces("application/json")]
-public class AuthController : ControllerBase
+public class UsersController : ControllerBase
 {
     private readonly UserManager<AppUser> _userManager;
     private readonly SignInManager<AppUser> _signInManager;
     private readonly JwtService _jwtService;
 
-    public AuthController(
+    public UsersController(
         UserManager<AppUser> userManager,
         SignInManager<AppUser> signInManager,
         JwtService jwtService)
@@ -25,7 +26,7 @@ public class AuthController : ControllerBase
         _jwtService = jwtService;
     }
 
-    [HttpPost("register")]
+    [HttpPost]
     public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto dto)
     {
         var user = new AppUser
@@ -69,7 +70,28 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponseDto(token, user.UserName!, user.Email!, user.Id));
     }
 
-    [HttpGet("users/{id:guid}", Name = nameof(GetUser))]
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult<AuthResponseDto>> GetCurrentUser()
+    {
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new AuthResponseDto(null, user.UserName!, user.Email!, user.Id));
+    }
+
+    [HttpGet("{id:guid}", Name = nameof(GetUser))]
     [ApiExplorerSettings(IgnoreApi = true)]
     public ActionResult GetUser(Guid id)
     {
